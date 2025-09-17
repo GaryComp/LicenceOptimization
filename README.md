@@ -36,13 +36,13 @@ Click Start → type PowerShell → right-click → Run as Administrator.
 
 Run this once to allow local scripts:
 
-Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
+Set-ExecutionPolicy RemoteSigned -Scope allusers -Force
 
 4. Install Microsoft Graph Module
 
 Run:
 
-Install-Module Microsoft.Graph -Scope CurrentUser -AllowClobber -Force
+Install-Module Microsoft.Graph -Scope allusers -AllowClobber -Force
 
 
 If prompted:
