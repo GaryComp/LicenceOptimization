@@ -91,7 +91,7 @@ Re-run:
 Install-Module Microsoft.Graph -Scope CurrentUser -AllowClobber -Force
 
 
-Restore Execution Policy (Optional):
+Restore Execution Policy:
 
 Set-ExecutionPolicy Restricted -Scope CurrentUser -Force
 
