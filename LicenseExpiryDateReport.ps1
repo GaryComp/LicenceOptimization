@@ -1,4 +1,5 @@
-﻿Param(
+#Version 2.1
+Param(
     [switch]$Trial,
     [switch]$Free,
     [switch]$Purchased,
@@ -48,7 +49,7 @@ if (Test-Path ".\Product_names_and_service_plan_identifiers.csv") {
 }
 else {
     Write-Host "❌ No friendly name mapping file (Product_names_and_service_plan_identifiers.csv) found in current directory." -ForegroundColor Red
-    exit
+    return
 }
 
 # ------------------------- Determine Filters -------------------------
@@ -76,8 +77,14 @@ $Results = @()
 foreach ($Sku in $Skus) {
     $SkuId = $Sku.SkuId
     $SkuPartNumber = $Sku.SkuPartNumber
-    $FriendlyName = $FriendlyNameHash[$SkuPartNumber] ?? $SkuPartNumber
-    $Consumed = ($Sku.ConsumedUnits | Select-Object -First 1)
+
+    if ($FriendlyNameHash.ContainsKey($SkuPartNumber)) {
+        $FriendlyName = $FriendlyNameHash[$SkuPartNumber]
+    } else {
+        $FriendlyName = $SkuPartNumber
+    }
+
+    $Consumed = if ($Sku.ConsumedUnits) { [int]$Sku.ConsumedUnits } else { 0 }
 
     $Lifecycle = $lifecycleInfo | Where-Object { $_.skuId -eq $SkuId }
     if (-not $Lifecycle) { continue }
@@ -109,7 +116,11 @@ foreach ($Sku in $Skus) {
         try {
             $SubscribedDate = [datetime]$Created
             $SubscribedAgo = (New-TimeSpan -Start $SubscribedDate -End (Get-Date)).Days
-            $SubscribedFriendly = if ($SubscribedAgo -eq 0) { "Today" } else { "$SubscribedAgo days ago" }
+            if ($SubscribedAgo -eq 0) {
+                $SubscribedFriendly = "Today"
+            } else {
+                $SubscribedFriendly = "$SubscribedAgo days ago"
+            }
             $SubscribedString = "$SubscribedDate ($SubscribedFriendly)"
         }
         catch {
@@ -125,12 +136,12 @@ foreach ($Sku in $Skus) {
         try {
             $ExpiryDateTime = [datetime]$ExpiryDate
             $DaysRemaining = (New-TimeSpan -Start (Get-Date) -End $ExpiryDateTime).Days
-            switch ($Status) {
-                "Enabled"   { $ExpiryNote = "Will expire in $DaysRemaining days" }
-                "Warning"   { $ExpiryNote = "Expired. Will suspend in $DaysRemaining days" }
-                "Suspended" { $ExpiryNote = "Expired. Will delete in $DaysRemaining days" }
-                "LockedOut" { $ExpiryNote = "Subscription is locked. Contact Microsoft." }
-                default     { $ExpiryNote = "Unknown status" }
+            switch -Regex ($Status) {
+                "^Enabled$"   { $ExpiryNote = "Will expire in $DaysRemaining days" }
+                "^Warning$"   { $ExpiryNote = "Expired. Will suspend in $DaysRemaining days" }
+                "^Suspended$" { $ExpiryNote = "Expired. Will delete in $DaysRemaining days" }
+                "^LockedOut$" { $ExpiryNote = "Subscription is locked. Contact Microsoft." }
+                default       { $ExpiryNote = "Unknown status" }
             }
         }
         catch {
@@ -153,7 +164,7 @@ foreach ($Sku in $Skus) {
     if ($Active -and $Status -eq "Enabled") { $Include = $true }
 
     if ($Include) {
-        $Results += [PSCustomObject]@{
+        $Results += New-Object PSObject -Property @{
             "Subscription Name"                             = $SkuPartNumber
             "Friendly Subscription Name"                    = $FriendlyName
             "Subscribed Date"                               = $SubscribedString
